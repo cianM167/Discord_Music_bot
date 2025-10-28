@@ -22,6 +22,19 @@ intents.members = True
 
 
 bot = commands.Bot(command_prefix='!', intents=intents)
+playing = []
+playing.append(0)
+queue = []
+
+def finished(error):
+    print("after running")
+    if len(queue) == 0:
+        playing[0] = 0
+    else:
+        voice = bot.voice_clients[0]
+        video = queue.pop(0)
+        voice.play(discord.FFmpegPCMAudio(executable="D:\\ffmpeg\\ffmpeg.exe", source="Audios\\"+video+".mp3"),after=finished)
+
 
 @bot.command(pass_context = True)
 async def join(msg, video):
@@ -34,8 +47,18 @@ async def join(msg, video):
             else:
                 channel = msg.author.voice.channel
                 voice = bot.voice_clients[0]
-            voice.play(discord.FFmpegPCMAudio(executable="D:\\ffmpeg\\ffmpeg.exe", source="Audios\\"+video.title+".mp3"))
-            print("playback finished")
+            print(playing)
+            if not(playing[0]):
+                playing[0] = 1
+                print("adding song")
+                await msg.channel.send(f"{msg.author.mention} - Now playing: {video.title}")
+                voice.play(discord.FFmpegPCMAudio(executable="D:\\ffmpeg\\ffmpeg.exe", source="Audios\\"+video.title+".mp3"),after=finished)
+            else:
+                print("queueing song")
+                await msg.channel.send(f"{msg.author.mention} - Queueing: {video.title}")
+                queue.append(video.title)
+                print(queue)
+            #print("playback finished")
             await clear()
     else:
         await msg.channel.send("You must be in a vc")   
@@ -51,6 +74,8 @@ async def clear():
                 shutil.rmtree(file_path)
         except Exception as e:
             print('Failed to delete %s. Reason: %s' % (file_path, e))
+    
+
 
 @bot.command(pass_context = True)
 async def leave(ctx):
@@ -69,7 +94,7 @@ async def on_message(message):
     if message.author == bot.user:
         return
     
-    if "play" in message.content.lower():
+    if "!play" in message.content.lower():
         url = message.content.split(" ")
         if len(url) != 2:
             await message.channel.send(f"missing url")
@@ -86,9 +111,9 @@ async def on_message(message):
             video = VideoFileClip("Videos\\"+yt.title+".mp4")
             video.audio.write_audiofile("Audios\\"+yt.title+".mp3")
 
-        await message.channel.send(f"{message.author.mention} - Now playing: {yt.title}")
         await join(message,yt)
  
-                
+    if "!queue" in message.content.lower():
+        await message.channel.send(f"{queue}")            
 
 bot.run(token, log_handler=handler, log_level=logging.DEBUG)
