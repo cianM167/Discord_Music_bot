@@ -6,10 +6,11 @@ from dotenv import load_dotenv
 import os
 from pytubefix import YouTube
 from pytubefix.cli import on_progress
+from pytubefix import Search
 from moviepy import *
 import os, shutil
 
-
+#maybe just download mp4a if it is support
 
 
 load_dotenv()
@@ -95,11 +96,18 @@ async def on_message(message):
         return
     
     if "!play" in message.content.lower():
-        url = message.content.split(" ")
-        if len(url) != 2:
-            await message.channel.send(f"missing url")
-            return
-        url = url[1]
+        if "youtube.com" in message.content:
+            url = message.content.split(" ")
+            if len(url) != 2:
+                await message.channel.send(f"missing url")
+                return
+            url = url[1]
+        else:
+            title = message.content.split(" ", 1)
+            print(title)
+            result = Search(title[1])
+            url = (result.videos[0]).watch_url
+        
         print(url)
         yt = YouTube(url, on_progress_callback = on_progress)
         print(yt.title+".mp3")
