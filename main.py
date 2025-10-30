@@ -7,7 +7,7 @@ import os
 from pytubefix import YouTube
 from pytubefix.cli import on_progress
 from pytubefix import Search
-from moviepy import *
+from pydub import AudioSegment
 import os, shutil
 
 #maybe just download mp4a if it is support
@@ -26,9 +26,11 @@ bot = commands.Bot(command_prefix='!', intents=intents)
 playing = []
 playing.append(0)
 queue = []
+server_queue = {}
 
 def finished(error):
     print("after running")
+    print(error)
     if len(queue) == 0:
         playing[0] = 0
     else:
@@ -38,31 +40,31 @@ def finished(error):
 
 
 @bot.command(pass_context = True)
-async def join(msg, video):
-    if (msg.author.voice):
-            print(bot.voice_clients)
-            if not(bot.voice_clients):
-                channel = msg.author.voice.channel
-                print(channel)
-                voice = await channel.connect()
-            else:
-                channel = msg.author.voice.channel
-                voice = bot.voice_clients[0]
-            print(playing)
-            if not(playing[0]):
-                playing[0] = 1
-                print("adding song")
-                await msg.channel.send(f"{msg.author.mention} - Now playing: {video.title}")
-                voice.play(discord.FFmpegPCMAudio(executable="D:\\ffmpeg\\ffmpeg.exe", source="Audios\\"+video.title+".mp3"),after=finished)
-            else:
-                print("queueing song")
-                await msg.channel.send(f"{msg.author.mention} - Queueing: {video.title}")
-                queue.append(video.title)
-                print(queue)
-            #print("playback finished")
-            await clear()
+async def join(ctx, video):
+    if (ctx.voice_client):
+        await play(ctx,video)
+    if (ctx.author.voice):
+        channel = ctx.message.author.voice.channel
+        await channel.connect()
+        await play(ctx,video)
     else:
-        await msg.channel.send("You must be in a vc")   
+        await ctx.channel.send("You must be in a vc")   
+
+@bot.command(pass_context = True)
+async def play(ctx,video):   
+    if not(ctx.voice_client.is_playing()):
+        print("adding song")
+        await ctx.channel.send(f"{ctx.author.mention} - Now playing: {video.title}")
+        ctx.voice_client.play(discord.FFmpegPCMAudio(executable="D:\\ffmpeg\\ffmpeg.exe", source="Audios\\"+video.title+".mp3"),after=finished)
+    else:
+        print("queueing song")
+        await ctx.channel.send(f"{ctx.author.mention} - Queueing: {video.title}")
+        server_queue[ctx.guild.id].append(video.title)
+        print(server_queue[ctx.guild.id])
+        queue.append(video.title)
+        print(queue)
+    #print("playback finished")
+    await clear()
 
 async def clear():
     folder = 'Videos'
@@ -114,12 +116,15 @@ async def on_message(message):
         print(os.listdir("Audios"))
         if not ((yt.title+".mp3") in (os.listdir("Audios"))):
             print("going to yt")
-            ys = yt.streams.get_highest_resolution()
-            ys.download("Videos")
-            video = VideoFileClip("Videos\\"+yt.title+".mp4")
-            video.audio.write_audiofile("Audios\\"+yt.title+".mp3")
+            ys = yt.streams.get_audio_only()
+            ys.download("m4as")
+            filename = yt.title + ".m4a"
+            audio = AudioSegment.from_file(os.path.join("m4as", filename))
+            audio.export("Audios\\"+yt.title+".mp3", format="mp3")
 
-        await join(message,yt)
+        ctx = await bot.get_context(message)
+        server_queue[ctx.guild.id] = []
+        await join(ctx,yt)
  
     if "!queue" in message.content.lower():
         await message.channel.send(f"{queue}")            
