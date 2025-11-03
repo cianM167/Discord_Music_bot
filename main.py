@@ -78,7 +78,14 @@ async def clear():
         except Exception as e:
             print('Failed to delete %s. Reason: %s' % (file_path, e))
     
-
+async def clean(string):
+    removed = ['"','|',"'"]
+    for item in removed:
+        while item in string:
+            string.pop(string.index(item))
+    
+    string = ''.join(string)
+    return string
 
 @bot.command(pass_context = True)
 async def leave(ctx):
@@ -114,10 +121,12 @@ async def on_message(message):
         yt = YouTube(url, on_progress_callback = on_progress)
         print(yt.title+".mp3")
         print(os.listdir("Audios"))
-        if not ((yt.title+".mp3") in (os.listdir("Audios"))):
+        if (not ((yt.title+".mp3") in (os.listdir("Audios")))) or (not (await clean(yt.title)+."mp3") in (os.listdir("Audios"))):
             print("going to yt")
             ys = yt.streams.get_audio_only()
             ys.download("m4as")
+            #yt.title = await clean(yt.title)
+            #os.rename(yt.title + ".m4a",yt.title)
             filename = yt.title + ".m4a"
             audio = AudioSegment.from_file(os.path.join("m4as", filename))
             audio.export("Audios\\"+yt.title+".mp3", format="mp3")
